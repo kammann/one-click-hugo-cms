@@ -1,0 +1,53 @@
+name: IONOS.space
+
+on: [push]
+
+jobs:
+  ionos-space:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Ionos Project data
+        uses: ionos-deploy-now/retrieve-project-info-action@v1
+        id: project
+        with:
+          api-key: ${{ secrets.IONOS_API_KEY }}
+          project: 1dbaef02-3ad9-4dd6-9ff5-d35d18f04c77
+          service-host: api-eu.ionos.space
+      - name: checkout
+        if: ${{ steps.project.outputs.deployment-enabled == 'true' }}
+        uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
+      - name: Setup Hugo
+        if: ${{ steps.project.outputs.deployment-enabled == 'true' }}
+        uses: peaceiris/actions-hugo@v2
+        with:
+          extended: true
+          hugo-version: '0.74.3'
+      - name: Setup Node.js 12.16.x
+        if: ${{ steps.project.outputs.deployment-enabled == 'true' }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: 12.16.x
+      - name: Prepare Project build environment
+        if: ${{ steps.project.outputs.deployment-enabled == 'true' }}
+        run: |
+          npm install --global yarn
+          yarn install --frozen-lockfile
+      - name: Build Node project
+        if: ${{ steps.project.outputs.deployment-enabled == 'true' }}
+        run: yarn build
+        env:
+          CI: true
+          SITE_URL: ${{ steps.project.outputs.site-url }}
+      - name: Deploy to IONOS
+        if: ${{ steps.project.outputs.deployment-enabled == 'true' }}
+        uses: ionos-deploy-now/deploy-to-ionos-action@v1
+        with:
+          branch-id: ${{ steps.project.outputs.branch-id }}
+          service-host: api-eu.ionos.space
+          api-key: ${{ secrets.IONOS_API_KEY }}
+          remote-host: ${{ steps.project.outputs.remote-host }}
+          dist-folder: dist
+          project: 1dbaef02-3ad9-4dd6-9ff5-d35d18f04c77
+          storage-quota: ${{ steps.project.outputs.storage-quota }}
